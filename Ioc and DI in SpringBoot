@@ -1,56 +1,48 @@
-These are Spring Boot tutorial notes covering IoC, Dependency Injection, and the layered architecture. Let me break it all down clearly.
+Spring Boot — IoC & Dependency Injection (Notes Summary)
+📌 Image 1 — Core Concepts
 
----
-
-## 🌱 Spring Boot — IoC & Dependency Injection (Notes Summary)
-
----
-
-### 📌 Image 1 — Core Concepts
-
-**Spring ecosystem:**
-- Spring is built on **Java + XML** config files
+Spring ecosystem:
+- Spring is built on Java + XML config files
 - Spring Framework → Spring Boot (reduces config from 100s of files to ~50)
 - Spring Boot = Spring Framework + auto-configuration
 
-**IoC — Inversion of Control:**
-- Full form: **Invasion of Control** (control is *inverted* — you don't create objects, Spring does)
-- Without Spring: `Student s = new Student();` ❌ (you manage it)
-- With Spring: Spring handles **creation → managing → destroying** of objects ✅
+IoC — Inversion of Control:
+- Full form: Invasion of Control (control is inverted — you don't create objects, Spring does)
+- Without Spring: Student s = new Student();❌ (you manage it)
+- With Spring: Spring handles creation → managing → destroying of objects ✅
 
-**Dependency Injection:**
-- Achieves **loose coupling**
-- You just declare the dependency; Spring **injects** it for you
+Dependency Injection:
+- Achieves loose coupling
+- You just declare the dependency; Spring injects it for you
 
 ---
 
-### 📌 Image 2 — IoC vs DI + IoC Container
+ 📌 Image 2 — IoC vs DI + IoC Container
 
-| Term | Nature |
-|------|--------|
-| **IoC** | Principle / Concept |
-| **DI** | Design Pattern (implementation of IoC) |
+| Term |            Nature               |
+|------|---------------------------------|
+| IoC  | Principle / Concept |
+|  DI  | Design Pattern (implementation of IoC) |
 | DI full form | Dependency Injection |
 
-**IoC Container:**
-- Lives inside the **JVM (heap)**
-- Called the **ApplicationContext**
-- Holds beans (e.g., `Student()` object) — Spring creates and stores them here
+IoC Container:
+- Lives inside the JVM (heap)
+- Called the ApplicationContext
+- Holds beans (e.g., Student() object) — Spring creates and stores them here
 
-**`@Autowiring`:**
-- Instead of `Student s = new Student();`, you write `@Autowired Student s;`
+@Autowiring:
+- Instead of `Student s = new Student();, you write @Autowired Student s;
 - Spring fetches the object from the IoC container automatically
 
-**3 Types of Dependency Injection:**
-1. **Field Injection** — `@Autowired` on a field
-2. **Constructor Injection** — via constructor
-3. **Setter Injection** — via setter method
+3 Types of Dependency Injection:
+1. Field Injection — @Autowired on a field
+2. Constructor Injection — via constructor
+3. Setter Injection — via setter method
 
 ---
 
-### 📌 Image 3 — Spring Boot Layered Architecture
+📌 Image 3 — Spring Boot Layered Architecture
 
-```
 Client
   │
   └──► localhost:8080/about (HTTP request)
@@ -69,14 +61,14 @@ Client
   ◄──── response back to Client
 ```
 
-**Each layer is a Java class:**
-- `class Controller { ... }` → handles HTTP, has an **object** of Service
-- `class Service { Service() { ... } }` → business logic
+Each layer is a Java class:
+- class Controller { ... } → handles HTTP, has an object of Service
+- class Service { Service() { ... } } → business logic
 - Repo → talks to DB
 
-**Key insight:** Each layer depends on the next — Spring injects these dependencies automatically using `@Autowired`, so you never manually `new` them.
+Key insight: Each layer depends on the next — Spring injects these dependencies automatically using `@Autowired`, so you never manually `new` them.
 
 ---
 
-### 🔑 One-Line Summary
+ 🔑 One-Line Summary
 > Spring's IoC container manages object lifecycle; DI injects dependencies between layers (Controller → Service → Repo → DB), keeping your code loosely coupled.
