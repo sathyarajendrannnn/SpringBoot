@@ -1,0 +1,253 @@
+## Autowiring in Spring
+
+---
+
+### 🧠 Concept First
+
+In XML config, you manually wrote:
+```xml
+<property name="address" ref="addr"/>
+```
+
+**Autowiring** lets Spring **automatically figure out** which bean to inject — you don't need to write `ref` manually. Spring matches beans by **name** or **type**.
+
+---
+
+### 📌 Autowiring Modes
+
+| Mode | How Spring matches | XML attribute |
+|---|---|---|
+| `no` | No autowiring (default) | — |
+| `byName` | Matches bean `id` with field name | `autowire="byName"` |
+| `byType` | Matches bean `class` type | `autowire="byType"` |
+| `constructor` | Like byType but via constructor | `autowire="constructor"` |
+
+---
+
+### 📦 Example Scenario
+
+`Student` depends on `Address` — classic object dependency.
+
+---
+
+#### 📄 Address.java
+```java
+package com.example;
+
+public class Address {
+
+    private String city;
+    private String state;
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public String getCity() { return city; }
+    public String getState() { return state; }
+
+    public void show() {
+        System.out.println("City: " + city + ", State: " + state);
+    }
+}
+```
+
+---
+
+#### 📄 Student.java
+```java
+package com.example;
+
+public class Student {
+
+    private String name;
+    private Address address;  // object dependency
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    // Setter for dependency — Spring calls this during autowiring
+    public void setAddress(Address address) {
+        this.address = address;
+    }
+
+    public void show() {
+        System.out.println("Name: " + name);
+        address.show();
+    }
+}
+```
+
+---
+
+### ✅ Mode 1 — `byName`
+
+Spring looks for a bean whose **id matches the field name** (`address`).
+
+```xml
+<beans ...>
+
+    <!-- Address bean — id must match field name in Student -->
+    <bean id="address" class="com.example.Address">
+        <property name="city"  value="Sathyamangalam"/>
+        <property name="state" value="Tamil Nadu"/>
+    </bean>
+
+    <!-- Student bean — Spring auto-injects 'address' bean by name -->
+    <bean id="student"
+          class="com.example.Student"
+          autowire="byName">
+        <property name="name" value="Nivas"/>
+        <!-- No need to write: <property name="address" ref="address"/> -->
+    </bean>
+
+</beans>
+```
+
+> Spring sees field `address` in Student → searches for bean with `id="address"` → injects it ✅
+
+---
+
+### ✅ Mode 2 — `byType`
+
+Spring looks for a bean whose **class type matches** the field type (`Address`).
+
+```xml
+<beans ...>
+
+    <!-- id name doesn't matter here, class type matters -->
+    <bean id="addr123" class="com.example.Address">
+        <property name="city"  value="Coimbatore"/>
+        <property name="state" value="Tamil Nadu"/>
+    </bean>
+
+    <bean id="student"
+          class="com.example.Student"
+          autowire="byType">
+        <property name="name" value="Nivas"/>
+    </bean>
+
+</beans>
+```
+
+> Spring sees field type `Address` → searches for bean of type `com.example.Address` → injects it ✅
+
+⚠️ **Problem with byType:** If you have **two beans of the same type**, Spring throws `NoUniqueBeanDefinitionException`.
+
+```xml
+<!-- This will CRASH with byType -->
+<bean id="addr1" class="com.example.Address"/>
+<bean id="addr2" class="com.example.Address"/>
+```
+
+---
+
+### ✅ Mode 3 — `constructor`
+
+Like `byType` but Spring uses the **constructor** instead of setter.
+
+```java
+// Student.java — needs a constructor
+public Student(Address address) {
+    this.address = address;
+}
+```
+
+```xml
+<bean id="student"
+      class="com.example.Student"
+      autowire="constructor">
+    <property name="name" value="Nivas"/>
+</bean>
+```
+
+---
+
+#### 📄 App.java
+```java
+package com.example;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class App {
+    public static void main(String[] args) {
+
+        ApplicationContext ctx =
+            new ClassPathXmlApplicationContext("beans.xml");
+
+        Student s = (Student) ctx.getBean("student");
+        s.show();
+    }
+}
+```
+
+#### 🖥️ Output
+```
+Name: Nivas
+City: Sathyamangalam, State: Tamil Nadu
+```
+
+---
+
+### 📌 @Autowired — Annotation Based (Modern Way)
+
+XML autowiring is old. In Spring Boot you use `@Autowired` annotation directly in the class — **no XML needed**.
+
+```java
+@Component
+public class Student {
+
+    private String name;
+
+    @Autowired          // Spring injects Address bean automatically
+    private Address address;
+
+    // No setter needed for field injection!
+}
+```
+
+#### 3 places you can put `@Autowired`:
+
+```java
+// 1. Field Injection (most common, least recommended)
+@Autowired
+private Address address;
+
+// 2. Setter Injection
+@Autowired
+public void setAddress(Address address) {
+    this.address = address;
+}
+
+// 3. Constructor Injection (most recommended)
+@Autowired
+public Student(Address address) {
+    this.address = address;
+}
+```
+
+---
+
+### 📊 XML Autowire vs @Autowired
+
+| Point | XML `autowire` | `@Autowired` |
+|---|---|---|
+| Style | Old (Spring Framework) | Modern (Spring Boot) |
+| Config file needed | Yes (beans.xml) | No |
+| Default mode | byName / byType | byType |
+| Ambiguity fix | Only one bean allowed | Use `@Qualifier("beanId")` |
+
+---
+
+### 🔑 Interview One-Liners
+
+> **byName** → field name must match bean id  
+> **byType** → field type must match bean class; fails if duplicates exist  
+> **@Autowired** → Spring Boot way; works byType; use `@Qualifier` to resolve ambiguity  
+> **@Autowired on constructor** → recommended approach (immutable, testable)
