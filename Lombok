@@ -1,0 +1,317 @@
+## Lombok in Spring Boot
+
+---
+
+### 🧠 Why Lombok?
+
+Every Java class needs boilerplate code that adds **zero business value**:
+
+```java
+// Without Lombok — you write ALL of this manually
+public class Student {
+    private String name;
+    private int age;
+
+    public Student() {}
+    public Student(String name, int age) { ... }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public int getAge() { return age; }
+    public void setAge(int age) { this.age = age; }
+
+    @Override
+    public String toString() { ... }
+
+    @Override
+    public boolean equals(Object o) { ... }
+
+    @Override
+    public int hashCode() { ... }
+}
+```
+
+**Lombok generates all of this at compile time** via annotations. Your actual source file becomes:
+
+```java
+// With Lombok — clean!
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class Student {
+    private String name;
+    private int age;
+}
+```
+
+---
+
+### 📦 Setup — pom.xml
+
+```xml
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <version>1.18.30</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+> In Spring Initializr — just tick **Lombok** when creating project. Done.
+
+---
+
+### 📌 All Key Annotations
+
+---
+
+#### 1️⃣ `@Getter` / `@Setter`
+
+```java
+@Getter
+@Setter
+public class Student {
+    private String name;
+    private int age;
+}
+
+// Lombok generates:
+// getName(), setName()
+// getAge(),  setAge()
+```
+
+Can also apply to individual fields:
+
+```java
+public class Student {
+    @Getter @Setter
+    private String name;
+
+    @Getter                  // only getter, no setter
+    private int age;
+}
+```
+
+---
+
+#### 2️⃣ `@NoArgsConstructor` / `@AllArgsConstructor` / `@RequiredArgsConstructor`
+
+```java
+@NoArgsConstructor       // public Student() {}
+@AllArgsConstructor      // public Student(String name, int age) {}
+public class Student {
+    private String name;
+    private int age;
+}
+```
+
+```java
+// @RequiredArgsConstructor — only for final or @NonNull fields
+@RequiredArgsConstructor
+public class Student {
+    private final String name;    // included in constructor
+    private final Address address;// included in constructor
+    private int age;              // NOT included (not final)
+}
+// generates: public Student(String name, Address address) {}
+```
+
+> `@RequiredArgsConstructor` is the **Spring Boot DI standard** — pairs perfectly with constructor injection.
+
+---
+
+#### 3️⃣ `@ToString`
+
+```java
+@ToString
+public class Student {
+    private String name;
+    private int age;
+}
+// generates:
+// Student(name=Nivas, age=21)
+
+// Exclude a field:
+@ToString(exclude = "password")
+public class User {
+    private String username;
+    private String password;
+}
+```
+
+---
+
+#### 4️⃣ `@EqualsAndHashCode`
+
+```java
+@EqualsAndHashCode
+public class Student {
+    private String name;
+    private int age;
+}
+// generates equals() and hashCode() based on all fields
+
+// Use only specific fields:
+@EqualsAndHashCode(of = {"name"})
+```
+
+---
+
+#### 5️⃣ `@Data` — The All-in-One
+
+```java
+@Data
+public class Student {
+    private String name;
+    private int age;
+}
+```
+
+`@Data` = `@Getter` + `@Setter` + `@ToString` + `@EqualsAndHashCode` + `@RequiredArgsConstructor`
+
+> Most commonly used for **DTOs and Entity classes**.
+
+---
+
+#### 6️⃣ `@Builder` — Builder Pattern
+
+```java
+@Builder
+@Data
+public class Student {
+    private String name;
+    private int age;
+    private String email;
+    private Address address;
+}
+
+// Usage — no need to remember constructor order
+Student s = Student.builder()
+    .name("Nivas")
+    .age(21)
+    .email("nivas@gmail.com")
+    .build();
+```
+
+> Perfect when a class has **many fields** — much cleaner than a long constructor call.
+
+---
+
+#### 7️⃣ `@Slf4j` — Logging (very useful in Spring Boot)
+
+```java
+@Slf4j
+@Service
+public class StudentService {
+
+    public void process() {
+        log.info("Processing student...");
+        log.debug("Debug info here");
+        log.error("Something went wrong");
+    }
+}
+// No need to write:
+// private static final Logger log = LoggerFactory.getLogger(StudentService.class);
+```
+
+---
+
+#### 8️⃣ `@Value` (Lombok) — Immutable class
+
+```java
+@Value   // all fields final, no setters, all-args constructor
+public class StudentDTO {
+    String name;
+    int age;
+}
+// Use for immutable response/request objects
+```
+
+---
+
+### ✅ Real Spring Boot Service — Full Example
+
+```java
+// Student.java (Entity)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+public class Student {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private int age;
+    private String email;
+}
+```
+
+```java
+// StudentService.java
+@Slf4j
+@Service
+@RequiredArgsConstructor   // constructor injection — no @Autowired needed
+public class StudentService {
+
+    private final StudentRepository studentRepo;  // auto-injected
+
+    public Student createStudent(String name, int age) {
+        log.info("Creating student: {}", name);
+
+        Student s = Student.builder()
+            .name(name)
+            .age(age)
+            .build();
+
+        return studentRepo.save(s);
+    }
+}
+```
+
+```java
+// StudentController.java
+@Slf4j
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/students")
+public class StudentController {
+
+    private final StudentService studentService;  // auto-injected
+
+    @PostMapping
+    public Student create(@RequestBody Student student) {
+        log.info("POST /students called");
+        return studentService.createStudent(
+            student.getName(),
+            student.getAge()
+        );
+    }
+}
+```
+
+---
+
+### 📊 Quick Reference Card
+
+| Annotation | Generates |
+|---|---|
+| `@Getter` | `getXxx()` for all fields |
+| `@Setter` | `setXxx()` for all fields |
+| `@NoArgsConstructor` | `ClassName() {}` |
+| `@AllArgsConstructor` | Constructor with all fields |
+| `@RequiredArgsConstructor` | Constructor for `final` / `@NonNull` fields |
+| `@ToString` | `toString()` |
+| `@EqualsAndHashCode` | `equals()` + `hashCode()` |
+| `@Data` | All of the above combined |
+| `@Builder` | Builder pattern |
+| `@Slf4j` | `log` object for logging |
+| `@Value` | Immutable class (all final) |
+
+---
+
+### 🔑 Interview One-Liner
+> "Lombok is a compile-time annotation processor that eliminates Java boilerplate — getters, setters, constructors, toString — keeping code clean. In Spring Boot, `@RequiredArgsConstructor` + `final` fields is the standard pattern for constructor injection without writing any constructor manually."
