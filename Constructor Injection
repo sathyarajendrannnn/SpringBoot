@@ -1,0 +1,242 @@
+## Constructor Injection in Spring
+
+---
+
+### 🧠 Concept First
+
+In **Constructor Injection**, Spring injects dependencies **at the time of object creation** itself — through the constructor. No separate setter call needed.
+
+```
+Setter Injection:
+1. Student s = new Student();     // object created first
+2. s.setAge(21);                  // then values injected
+
+Constructor Injection:
+1. Student s = new Student(21);   // object created + values injected together
+```
+
+---
+
+### 📌 When to Use Which
+
+| Situation | Use |
+|---|---|
+| Mandatory dependencies | ✅ Constructor Injection |
+| Optional dependencies | Setter Injection |
+| Immutable fields (`final`) | ✅ Constructor Injection only |
+| Many optional config fields | Setter Injection |
+| Spring Boot best practice | ✅ Constructor Injection |
+
+---
+
+### ✅ Full Code
+
+#### 📄 Address.java
+```java
+package com.example;
+
+public class Address {
+
+    private String city;
+    private String state;
+
+    // Constructor
+    public Address(String city, String state) {
+        this.city  = city;
+        this.state = state;
+    }
+
+    public void show() {
+        System.out.println("City: " + city + ", State: " + state);
+    }
+}
+```
+
+---
+
+#### 📄 Student.java
+```java
+package com.example;
+
+public class Student {
+
+    private final String name;    // final → only constructor injection works
+    private final int age;
+    private final Address address;
+
+    // Constructor — Spring calls this with injected values
+    public Student(String name, int age, Address address) {
+        this.name    = name;
+        this.age     = age;
+        this.address = address;
+        System.out.println("Student constructor called");
+    }
+
+    public void show() {
+        System.out.println("Name: " + name + ", Age: " + age);
+        address.show();
+    }
+}
+```
+
+---
+
+#### 📄 beans.xml
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+         http://www.springframework.org/schema/beans
+         http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- Address bean — also uses constructor injection -->
+    <bean id="address" class="com.example.Address">
+        <constructor-arg value="Sathyamangalam"/>
+        <constructor-arg value="Tamil Nadu"/>
+    </bean>
+
+    <!-- Student bean — constructor injection -->
+    <bean id="student" class="com.example.Student">
+        <constructor-arg value="Nivas"/>
+        <constructor-arg value="21"/>
+        <constructor-arg ref="address"/>  <!-- object injection -->
+    </bean>
+
+</beans>
+```
+
+> `<constructor-arg>` maps to constructor parameters **in order** (top to bottom = left to right in constructor)
+
+---
+
+#### 📄 App.java
+```java
+package com.example;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class App {
+    public static void main(String[] args) {
+
+        ApplicationContext ctx =
+            new ClassPathXmlApplicationContext("beans.xml");
+
+        Student s = (Student) ctx.getBean("student");
+        s.show();
+    }
+}
+```
+
+#### 🖥️ Output
+```
+Student constructor called
+Name: Nivas, Age: 21
+City: Sathyamangalam, State: Tamil Nadu
+```
+
+---
+
+### 📌 Handling Ambiguity in constructor-arg
+
+When Spring can't figure out which arg is which, use `index`, `name`, or `type`:
+
+```xml
+<!-- By index (0-based) -->
+<bean id="student" class="com.example.Student">
+    <constructor-arg index="0" value="Nivas"/>
+    <constructor-arg index="1" value="21"/>
+    <constructor-arg index="2" ref="address"/>
+</bean>
+
+<!-- By name -->
+<bean id="student" class="com.example.Student">
+    <constructor-arg name="name"    value="Nivas"/>
+    <constructor-arg name="age"     value="21"/>
+    <constructor-arg name="address" ref="address"/>
+</bean>
+
+<!-- By type -->
+<bean id="student" class="com.example.Student">
+    <constructor-arg type="java.lang.String" value="Nivas"/>
+    <constructor-arg type="int"              value="21"/>
+    <constructor-arg type="com.example.Address" ref="address"/>
+</bean>
+```
+
+---
+
+### 📌 Spring Boot Version — @Autowired on Constructor
+
+```java
+@Component
+public class Student {
+
+    private final String name;
+    private final Address address;
+
+    // @Autowired optional in Spring Boot 4.3+ if only one constructor
+    @Autowired
+    public Student(Address address) {
+        this.name    = "Nivas";
+        this.address = address;
+    }
+
+    public void show() {
+        System.out.println("Name: " + name);
+        address.show();
+    }
+}
+```
+
+---
+
+### 📌 Lombok shortcut (used in real projects)
+
+```java
+@Component
+@RequiredArgsConstructor   // generates constructor for all final fields
+public class Student {
+
+    private final Address address;  // auto-injected via constructor
+    private final CourseService courseService;
+}
+```
+
+> This is exactly how Spring Boot production code looks — `@RequiredArgsConstructor` + `final` fields = constructor injection with zero boilerplate.
+
+---
+
+### 📊 All 3 Injection Types — Side by Side
+
+```java
+// Field Injection
+@Autowired
+private Address address;
+
+// Setter Injection
+@Autowired
+public void setAddress(Address address) {
+    this.address = address;
+}
+
+// Constructor Injection ✅ (recommended)
+@Autowired
+public Student(Address address) {
+    this.address = address;
+}
+```
+
+| | Field | Setter | Constructor |
+|---|---|---|---|
+| `final` fields | ❌ | ❌ | ✅ |
+| Easy to unit test | ❌ | ✅ | ✅ |
+| Mandatory deps | ❌ | ❌ | ✅ |
+| Optional deps | ❌ | ✅ | ❌ |
+| Spring Boot recommended | ❌ | ❌ | ✅ |
+
+---
+
+### 🔑 Interview One-Liner
+> "Constructor Injection injects all mandatory dependencies at object creation time via the constructor — making fields immutable (`final`), ensuring the object is always in a valid state, and making unit testing easy without a Spring context."
