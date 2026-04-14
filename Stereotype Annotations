@@ -1,0 +1,343 @@
+## Stereotype Annotations in Spring
+
+---
+
+### 🧠 What Are Stereotype Annotations?
+
+Instead of manually defining every bean in `AppConfig.java` with `@Bean`, you mark your classes directly with **stereotype annotations** — Spring auto-detects them via **component scanning**.
+
+```
+@Bean in AppConfig.java     →  you manually register each bean
+Stereotype Annotations      →  Spring auto-discovers beans itself
+```
+
+---
+
+### 📌 The Stereotype Family
+
+```
+        @Component
+        (parent of all)
+             │
+    ┌────────┼────────┐
+    ▼        ▼        ▼
+@Service  @Repository  @Controller/@RestController
+```
+
+| Annotation | Layer | Purpose |
+|---|---|---|
+| `@Component` | Any | Generic bean — doesn't belong to specific layer |
+| `@Service` | Business Logic | Marks service layer classes |
+| `@Repository` | Data Access | Marks DAO/repository classes |
+| `@Controller` | Presentation | Handles HTTP, returns views (MVC) |
+| `@RestController` | Presentation | `@Controller` + `@ResponseBody` — returns JSON |
+
+> All 4 are technically the same to Spring — they all register a bean. The difference is **semantic** (readability + layer clarity) and some extras like exception translation in `@Repository`.
+
+---
+
+### 📌 How Auto-Detection Works
+
+```java
+// AppConfig.java
+@Configuration
+@ComponentScan(basePackages = "com.example")  // scan this package
+public class AppConfig { }
+```
+
+Spring scans every class in `com.example` — if it finds any stereotype annotation, it **automatically registers that class as a bean**.
+
+---
+
+### ✅ Full Code — All Layers
+
+---
+
+#### 📄 Student.java (Model)
+```java
+package com.example.model;
+
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class Student {
+    private int id;
+    private String name;
+    private int age;
+}
+```
+
+---
+
+#### 📄 StudentRepository.java — `@Repository`
+```java
+package com.example.repository;
+
+import com.example.model.Student;
+import org.springframework.stereotype.Repository;
+import java.util.*;
+
+@Repository   // Data Access Layer — talks to DB
+public class StudentRepository {
+
+    // Simulating a database with a Map
+    private Map<Integer, Student> db = new HashMap<>();
+
+    public void save(Student s) {
+        db.put(s.getId(), s);
+        System.out.println("Saved to DB: " + s.getName());
+    }
+
+    public Student findById(int id) {
+        return db.get(id);
+    }
+
+    public List<Student> findAll() {
+        return new ArrayList<>(db.values());
+    }
+}
+```
+
+---
+
+#### 📄 StudentService.java — `@Service`
+```java
+package com.example.service;
+
+import com.example.model.Student;
+import com.example.repository.StudentRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.List;
+
+@Service   // Business Logic Layer
+public class StudentService {
+
+    @Autowired
+    private StudentRepository studentRepository;  // injected automatically
+
+    public void addStudent(Student s) {
+        // business logic can go here (validation, etc.)
+        System.out.println("Service: adding student...");
+        studentRepository.save(s);
+    }
+
+    public Student getStudent(int id) {
+        return studentRepository.findById(id);
+    }
+
+    public List<Student> getAllStudents() {
+        return studentRepository.findAll();
+    }
+}
+```
+
+---
+
+#### 📄 StudentController.java — `@Controller`
+```java
+package com.example.controller;
+
+import com.example.model.Student;
+import com.example.service.StudentService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import java.util.List;
+
+@Controller   // Presentation Layer
+public class StudentController {
+
+    @Autowired
+    private StudentService studentService;  // injected automatically
+
+    public void addStudent(Student s) {
+        System.out.println("Controller: received request to add student");
+        studentService.addStudent(s);
+    }
+
+    public void getStudent(int id) {
+        Student s = studentService.getStudent(id);
+        System.out.println("Found: " + s);
+    }
+
+    public void getAllStudents() {
+        List<Student> list = studentService.getAllStudents();
+        list.forEach(System.out::println);
+    }
+}
+```
+
+---
+
+#### 📄 AppConfig.java
+```java
+package com.example;
+
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@ComponentScan(basePackages = "com.example")  // scans all sub-packages
+public class AppConfig { }
+```
+
+---
+
+#### 📄 App.java
+```java
+package com.example;
+
+import com.example.controller.StudentController;
+import com.example.model.Student;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+public class App {
+    public static void main(String[] args) {
+
+        ApplicationContext ctx =
+            new AnnotationConfigApplicationContext(AppConfig.class);
+
+        // Get controller bean
+        StudentController controller =
+            ctx.getBean(StudentController.class);
+
+        // Add students
+        controller.addStudent(new Student(1, "Nivas", 21));
+        controller.addStudent(new Student(2, "Balaji", 22));
+
+        System.out.println("--- Get One ---");
+        controller.getStudent(1);
+
+        System.out.println("--- Get All ---");
+        controller.getAllStudents();
+    }
+}
+```
+
+#### 🖥️ Output
+```
+Controller: received request to add student
+Service: adding student...
+Saved to DB: Nivas
+
+Controller: received request to add student
+Service: adding student...
+Saved to DB: Balaji
+
+--- Get One ---
+Found: Student(id=1, name=Nivas, age=21)
+
+--- Get All ---
+Student(id=1, name=Nivas, age=21)
+Student(id=2, name=Balaji, age=22)
+```
+
+---
+
+### 📌 @RestController — for Spring Boot REST APIs
+
+```java
+@RestController          // @Controller + @ResponseBody
+@RequestMapping("/students")
+public class StudentController {
+
+    @Autowired
+    private StudentService studentService;
+
+    @GetMapping("/{id}")
+    public Student getStudent(@PathVariable int id) {
+        return studentService.getStudent(id);   // returns JSON automatically
+    }
+
+    @PostMapping
+    public Student addStudent(@RequestBody Student s) {
+        studentService.addStudent(s);
+        return s;
+    }
+}
+```
+
+---
+
+### 📌 @Component — When to Use
+
+Use `@Component` when your class doesn't clearly belong to any layer:
+
+```java
+// Utility class — not service, not repo, not controller
+@Component
+public class EmailValidator {
+
+    public boolean isValid(String email) {
+        return email.contains("@");
+    }
+}
+
+// Inject anywhere
+@Service
+public class StudentService {
+
+    @Autowired
+    private EmailValidator emailValidator;   // injected automatically
+}
+```
+
+---
+
+### 📌 Bean Naming with Stereotype Annotations
+
+```java
+// Default bean name = class name with lowercase first letter
+@Service
+public class StudentService { }
+// bean id = "studentService"
+
+// Custom name
+@Service("stuService")
+public class StudentService { }
+// bean id = "stuService"
+
+// Fetch by name
+StudentService s = (StudentService) ctx.getBean("studentService");
+
+// Fetch by type (cleaner)
+StudentService s = ctx.getBean(StudentService.class);
+```
+
+---
+
+### 📊 All Stereotype Annotations — Summary
+
+| Annotation | Layer | Extra Behaviour |
+|---|---|---|
+| `@Component` | Any | Basic bean registration |
+| `@Service` | Service | No extra — semantic clarity |
+| `@Repository` | DAO | Translates DB exceptions to Spring's `DataAccessException` |
+| `@Controller` | Web MVC | Works with `ViewResolver` to return HTML views |
+| `@RestController` | REST API | Returns JSON/XML directly — `@Controller` + `@ResponseBody` |
+
+---
+
+### 📌 How Spring Boot Uses This
+
+```java
+@SpringBootApplication
+// includes @ComponentScan — scans your main package + all sub-packages
+public class MyApp {
+    public static void main(String[] args) {
+        SpringApplication.run(MyApp.class, args);
+    }
+}
+```
+
+> In Spring Boot you **never write** `@ComponentScan` manually — `@SpringBootApplication` already does it for the entire project. Just put your classes in the right package and annotate them.
+
+---
+
+### 🔑 Interview One-Liner
+> "Stereotype annotations (`@Component`, `@Service`, `@Repository`, `@Controller`) mark classes for auto-detection by Spring's component scan — eliminating manual `@Bean` registration. They're semantically meaningful: `@Repository` adds DB exception translation, `@RestController` adds `@ResponseBody`. In Spring Boot, `@SpringBootApplication` enables component scanning automatically."
