@@ -1,0 +1,180 @@
+## Setter Injection in Spring
+
+---
+
+### 🧠 Concept First
+
+In **Setter Injection**, Spring injects the dependency by calling the **setter method** of the class after creating the object via the default (no-arg) constructor.
+
+```
+Spring does this internally:
+1. Student s = new Student();        // no-arg constructor
+2. s.setName("Nivas");               // setter called by Spring
+```
+
+---
+
+### 📦 Example — Without Spring (tight coupling)
+
+```java
+class Student {
+    private String name;
+    private int age;
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setAge(int age) {
+        this.age = age;
+    }
+
+    public void show() {
+        System.out.println(name + " - " + age);
+    }
+}
+
+// Main
+Student s = new Student();
+s.setName("Nivas");
+s.setAge(21);
+s.show();
+```
+
+You're manually calling setters — **tight coupling**, Spring not involved.
+
+---
+
+### ✅ With Spring — Setter Injection via XML
+
+#### Step 1 — Student.java
+```java
+package com.example;
+
+public class Student {
+
+    private String name;
+    private int age;
+
+    // No-arg constructor (Spring needs this)
+    public Student() {}
+
+    // Setters
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setAge(int age) {
+        this.age = age;
+    }
+
+    public void show() {
+        System.out.println("Name: " + name + ", Age: " + age);
+    }
+}
+```
+
+---
+
+#### Step 2 — beans.xml (Spring config)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+         http://www.springframework.org/schema/beans
+         http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="student" class="com.example.Student">
+        <!-- Setter Injection using <property> tag -->
+        <property name="name" value="Nivas"/>
+        <property name="age"  value="21"/>
+    </bean>
+
+</beans>
+```
+
+> `name="name"` → Spring calls `setName()`  
+> `name="age"` → Spring calls `setAge()`  
+> The `name` attribute must **match the setter method name** (minus "set", lowercase first letter)
+
+---
+
+#### Step 3 — Main.java
+
+```java
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class Main {
+    public static void main(String[] args) {
+
+        ApplicationContext ctx =
+            new ClassPathXmlApplicationContext("beans.xml");
+
+        Student s = (Student) ctx.getBean("student");
+        s.show();
+        // Output: Name: Nivas, Age: 21
+    }
+}
+```
+
+---
+
+### 🔗 Injecting an Object (ref) — not just primitive values
+
+When one class depends on another class:
+
+```java
+// Address.java
+public class Address {
+    private String city;
+    public void setCity(String city) { this.city = city; }
+    public String getCity() { return city; }
+}
+
+// Student.java
+public class Student {
+    private String name;
+    private Address address;   // object dependency
+
+    public void setName(String name) { this.name = name; }
+    public void setAddress(Address address) { this.address = address; }
+
+    public void show() {
+        System.out.println(name + " lives in " + address.getCity());
+    }
+}
+```
+
+```xml
+<bean id="addr" class="com.example.Address">
+    <property name="city" value="Sathyamangalam"/>
+</bean>
+
+<bean id="student" class="com.example.Student">
+    <property name="name" value="Nivas"/>
+    <property name="address" ref="addr"/>  <!-- ref = another bean -->
+</bean>
+```
+
+> `value` → for primitives/Strings  
+> `ref` → for object dependencies (another bean)
+
+---
+
+### 📊 Setter vs Constructor Injection — Quick Comparison
+
+| Point | Setter Injection | Constructor Injection |
+|---|---|---|
+| How | `setXxx()` method | Constructor parameter |
+| XML tag | `<property>` | `<constructor-arg>` |
+| Object created first? | Yes, then values set | Values set during creation |
+| Optional dependencies? | ✅ Yes | ❌ No (must pass all) |
+| Preferred for | Optional / many fields | Mandatory dependencies |
+
+---
+
+### 🔑 One-Line Interview Answer
+> "In Setter Injection, Spring first creates the object using the no-arg constructor, then injects dependencies by calling setter methods — configured via `<property>` tags in XML or `@Autowired` on setters in annotation-based config."
