@@ -1,0 +1,191 @@
+## Loose Coupling using Interfaces
+
+---
+
+### 📌 What the Diagram Says
+
+```
+Loose Coupling → Using Interfaces
+
+Student → Pen   → implements → Writer (interface)
+          Pencil →           ↗
+```
+
+`Student` depends on a `Writer` — not on `Pen` or `Pencil` directly. Either can be swapped in without changing `Student`.
+
+---
+
+### 🧠 Why Interfaces = Loose Coupling
+
+|          Tight Coupling       |          Loose Coupling         |
+|-------------------------------|---------------------------------|
+| `Student` directly uses `Pen` | `Student` uses `Writer` interface |
+| Change tool → change Student code | Change tool → zero change in Student |
+| Hard to test/swap | Easy to swap `Pen` ↔ `Pencil` |
+
+---
+
+### ✅ Full Code
+
+#### 📄 Writer.java (Interface)
+```java
+package com.example;
+
+public interface Writer {
+    void write();
+}
+```
+
+---
+
+#### 📄 Pen.java
+```java
+package com.example;
+
+public class Pen implements Writer {
+
+    @Override
+    public void write() {
+        System.out.println("Writing with Pen...");
+    }
+}
+```
+
+---
+
+#### 📄 Pencil.java
+```java
+package com.example;
+
+public class Pencil implements Writer {
+
+    @Override
+    public void write() {
+        System.out.println("Writing with Pencil...");
+    }
+}
+```
+
+---
+
+#### 📄 Student.java
+```java
+package com.example;
+
+public class Student {
+
+    // Depends on INTERFACE, not on Pen or Pencil directly
+    private Writer writer;
+
+    // Setter injection
+    public void setWriter(Writer writer) {
+        this.writer = writer;
+    }
+
+    public void study() {
+        System.out.print("Student is studying → ");
+        writer.write();   // doesn't care if it's Pen or Pencil
+    }
+}
+```
+
+---
+
+#### 📄 beans.xml
+```xml
+<beans ...>
+
+    <bean id="pen"    class="com.example.Pen"/>
+    <bean id="pencil" class="com.example.Pencil"/>
+
+    <!-- Inject Pen today -->
+    <bean id="student" class="com.example.Student" autowire="byType">
+        <!-- Spring injects whichever Writer bean is active -->
+    </bean>
+
+    <!-- To switch to Pencil: just comment out pen bean, uncomment pencil -->
+
+</beans>
+```
+
+> To switch from `Pen` to `Pencil` — **zero changes in Student.java**. Only XML changes. That's loose coupling.
+
+---
+
+#### 📄 App.java
+```java
+package com.example;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class App {
+    public static void main(String[] args) {
+
+        ApplicationContext ctx =
+            new ClassPathXmlApplicationContext("beans.xml");
+
+        Student s = (Student) ctx.getBean("student");
+        s.study();
+    }
+}
+```
+
+#### 🖥️ Output (with Pen)
+```
+Student is studying → Writing with Pen...
+```
+#### 🖥️ Output (with Pencil — just swap the bean)
+```
+Student is studying → Writing with Pencil...
+```
+
+---
+
+### 📌 Spring Boot Version (@Autowired + @Component)
+
+```java
+// Writer.java
+public interface Writer {
+    void write();
+}
+
+// Pen.java
+@Component
+public class Pen implements Writer {
+    public void write() {
+        System.out.println("Writing with Pen...");
+    }
+}
+
+// Student.java
+@Component
+public class Student {
+
+    @Autowired
+    private Writer writer;  // Spring injects Pen (or Pencil) automatically
+
+    public void study() {
+        writer.write();
+    }
+}
+```
+
+> If both `Pen` and `Pencil` are `@Component`, Spring gets confused (two beans of same type `Writer`) → use `@Qualifier` to resolve:
+
+```java
+@Autowired
+@Qualifier("pen")       // tells Spring: inject the Pen bean specifically
+private Writer writer;
+```
+
+---
+
+### 🔑 Key Takeaway
+
+```
+Tight  → Student uses Pen directly     → change tool = change Student
+Loose  → Student uses Writer interface → change tool = zero change in Student
+```
+
+> This is the **Dependency Inversion Principle** (the D in SOLID) — depend on abstractions, not concretions. Spring's DI is built exactly on this idea.
