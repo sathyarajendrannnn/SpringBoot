@@ -1,0 +1,342 @@
+## Java-Based Configuration in Spring
+
+---
+
+### 🧠 Why Java Config?
+
+Spring started with **XML config** → then **Annotations** → then **Java-based config**.
+
+```
+Evolution:
+XML Config (beans.xml)     →  verbose, hard to refactor
+Annotation Config          →  @Component, @Autowired
+Java Config ✅             →  pure Java, type-safe, no XML at all
+```
+
+| Config Style | File | Spring Boot? |
+|---|---|---|
+| XML | `beans.xml` | ❌ Old |
+| Annotation | `@Component` scan | ✅ |
+| Java Config | `@Configuration` class | ✅ Default |
+
+> Spring Boot uses **Java-based config internally** — understanding this explains how Spring Boot auto-configuration works.
+
+---
+
+### 📌 Two Key Annotations
+
+| Annotation | Meaning |
+|---|---|
+| `@Configuration` | This class = replacement for `beans.xml` |
+| `@Bean` | This method = replacement for `<bean>` tag |
+
+```xml
+<!-- XML way -->
+<bean id="student" class="com.example.Student"/>
+```
+
+```java
+// Java Config way
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public Student student() {
+        return new Student();
+    }
+}
+```
+
+---
+
+### ✅ Full Code — Step by Step
+
+---
+
+#### 📄 Address.java
+
+```java
+package com.example;
+
+public class Address {
+
+    private String city;
+    private String state;
+
+    public Address(String city, String state) {
+        this.city  = city;
+        this.state = state;
+    }
+
+    public void show() {
+        System.out.println("City: " + city + ", State: " + state);
+    }
+}
+```
+
+---
+
+#### 📄 Student.java
+
+```java
+package com.example;
+
+public class Student {
+
+    private String name;
+    private int age;
+    private Address address;
+
+    // Setters
+    public void setName(String name)       { this.name = name; }
+    public void setAge(int age)            { this.age = age; }
+    public void setAddress(Address addr)   { this.address = addr; }
+
+    public void show() {
+        System.out.println("Name: " + name + ", Age: " + age);
+        address.show();
+    }
+}
+```
+
+---
+
+#### 📄 AppConfig.java — The Java Config Class
+
+```java
+package com.example;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration          // tells Spring: this class has bean definitions
+public class AppConfig {
+
+    // Bean 1 — Address
+    @Bean               // method name = bean id ("address")
+    public Address address() {
+        return new Address("Sathyamangalam", "Tamil Nadu");
+    }
+
+    // Bean 2 — Student (depends on Address)
+    @Bean               // method name = bean id ("student")
+    public Student student() {
+        Student s = new Student();
+        s.setName("Nivas");
+        s.setAge(21);
+        s.setAddress(address());   // calling address() — Spring returns same bean
+        return s;
+    }
+}
+```
+
+> Calling `address()` inside `student()` does **NOT** create a new object — Spring intercepts it and returns the **existing singleton bean** from the container.
+
+---
+
+#### 📄 App.java
+
+```java
+package com.example;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+public class App {
+    public static void main(String[] args) {
+
+        // Load context from Java config class (not XML)
+        ApplicationContext ctx =
+            new AnnotationConfigApplicationContext(AppConfig.class);
+
+        Student s = ctx.getBean(Student.class);
+        s.show();
+    }
+}
+```
+
+#### 🖥️ Output
+```
+Name: Nivas, Age: 21
+City: Sathyamangalam, State: Tamil Nadu
+```
+
+---
+
+### 📌 @Bean — Details
+
+```java
+@Configuration
+public class AppConfig {
+
+    // Default bean id = method name = "student"
+    @Bean
+    public Student student() {
+        return new Student("Nivas", 21);
+    }
+
+    // Custom bean id
+    @Bean(name = "myStudent")
+    public Student anotherStudent() {
+        return new Student("Balaji", 22);
+    }
+
+    // Multiple names
+    @Bean(name = {"st", "studentBean", "myBean"})
+    public Student yetAnother() {
+        return new Student("Ravi", 23);
+    }
+}
+```
+
+---
+
+### 📌 Injecting Dependencies — 3 Ways in Java Config
+
+#### Way 1 — Method Call (most common)
+```java
+@Bean
+public Student student() {
+    Student s = new Student();
+    s.setAddress(address());   // Spring returns singleton bean
+    return s;
+}
+```
+
+#### Way 2 — Method Parameter (cleaner)
+```java
+@Bean
+public Student student(Address address) {   // Spring auto-injects address bean
+    Student s = new Student();
+    s.setAddress(address);
+    return s;
+}
+```
+
+#### Way 3 — @Autowired in Config class
+```java
+@Configuration
+public class AppConfig {
+
+    @Autowired
+    private Address address;   // Spring injects before student() runs
+
+    @Bean
+    public Address address() {
+        return new Address("Sathyamangalam", "Tamil Nadu");
+    }
+
+    @Bean
+    public Student student() {
+        Student s = new Student();
+        s.setAddress(address);
+        return s;
+    }
+}
+```
+
+---
+
+### 📌 @ComponentScan — Auto-detect beans
+
+Instead of manually writing `@Bean` for every class, tell Spring to **scan a package**:
+
+```java
+@Configuration
+@ComponentScan(basePackages = "com.example")   // scans all @Component classes
+public class AppConfig {
+    // No @Bean methods needed
+    // Spring finds @Component, @Service, @Repository, @Controller automatically
+}
+```
+
+```java
+// Student.java
+@Component          // Spring detects this automatically
+public class Student {
+
+    @Autowired
+    private Address address;
+}
+```
+
+---
+
+### 📌 Multiple Config Classes
+
+Split config for large projects:
+
+```java
+@Configuration
+public class DatabaseConfig {
+    @Bean
+    public DataSource dataSource() { ... }
+}
+
+@Configuration
+public class ServiceConfig {
+    @Bean
+    public StudentService studentService() { ... }
+}
+
+// Load both
+ApplicationContext ctx =
+    new AnnotationConfigApplicationContext(
+        DatabaseConfig.class,
+        ServiceConfig.class
+    );
+```
+
+Or import one into another:
+
+```java
+@Configuration
+@Import(DatabaseConfig.class)   // imports DatabaseConfig beans
+public class AppConfig {
+    ...
+}
+```
+
+---
+
+### 📌 How Spring Boot Uses This Internally
+
+```java
+// Spring Boot's main class IS a Java config class
+@SpringBootApplication   // = @Configuration + @ComponentScan + @EnableAutoConfiguration
+public class MyApp {
+    public static void main(String[] args) {
+        SpringApplication.run(MyApp.class, args);
+    }
+}
+```
+
+```
+@SpringBootApplication
+    │
+    ├── @Configuration          → this class can define beans
+    ├── @ComponentScan          → scan all @Component in package
+    └── @EnableAutoConfiguration→ loads Spring Boot's built-in @Configuration classes
+                                   (DataSource, JPA, Security etc.)
+```
+
+> Every Spring Boot auto-config (like `DataSourceAutoConfiguration`) is just a `@Configuration` class with `@Bean` methods — exactly what you just learned.
+
+---
+
+### 📊 XML vs Java Config — Side by Side
+
+| | XML Config | Java Config |
+|---|---|---|
+| File type | `beans.xml` | `AppConfig.java` |
+| Bean definition | `<bean>` tag | `@Bean` method |
+| Load context | `ClassPathXmlApplicationContext` | `AnnotationConfigApplicationContext` |
+| Type safe | ❌ | ✅ |
+| Refactor friendly | ❌ | ✅ |
+| Used in Spring Boot | ❌ | ✅ |
+| IDE support | Limited | Full |
+
+---
+
+### 🔑 Interview One-Liner
+> "`@Configuration` marks a class as a Spring config file replacement for `beans.xml`. `@Bean` methods define beans manually — giving full Java type-safety. Spring Boot's `@SpringBootApplication` is itself a `@Configuration` class, and all auto-configuration is built on this same mechanism."
