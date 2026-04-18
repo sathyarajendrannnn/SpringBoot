@@ -19,11 +19,12 @@ Dependency Injection:
 
  📌 Image 2 — IoC vs DI + IoC Container
 
-| Term |            Nature               |
-|------|---------------------------------|
-| IoC  | Principle / Concept |
-|  DI  | Design Pattern (implementation of IoC) |
-| DI full form | Dependency Injection |
+--------------------------------------------------
+| Term |            Nature                       |
+|------|-----------------------------------------|
+| IoC  |           Principle / Concept           |
+|  DI  | Design Pattern (implementation of IoC)  |
+--------------------------------------------------
 
 IoC Container:
 - Lives inside the JVM (heap)
