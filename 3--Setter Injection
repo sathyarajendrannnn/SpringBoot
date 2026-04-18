@@ -167,12 +167,12 @@ public class Student {
 ### 📊 Setter vs Constructor Injection — Quick Comparison
 
 | Point | Setter Injection | Constructor Injection |
-|---|---|---|
-| How | `setXxx()` method | Constructor parameter |
-| XML tag | `<property>` | `<constructor-arg>` |
-| Object created first? | Yes, then values set | Values set during creation |
-| Optional dependencies? | ✅ Yes | ❌ No (must pass all) |
-| Preferred for | Optional / many fields | Mandatory dependencies |
+|-------------------------|-------------------------|-----------------------|
+|           How           |    `setXxx()` method    | Constructor parameter |
+|        XML tag          |        `<property>`     |  `<constructor-arg>`  |
+|  Object created first?  |  Yes, then values set   | Values set during creation |
+|  Optional dependencies? |          ✅ Yes        | ❌ No (must pass all) |
+|       Preferred for     |  Optional / many fields | Mandatory dependencies |
 
 ---
 
